@@ -1,0 +1,39 @@
+name: BlogPostNotifier
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # Har 15 Minute mein check karega
+  workflow_dispatch:      # Manual run button
+
+permissions:
+  contents: write
+
+jobs:
+  run_bot:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Libraries
+        run: pip install -r requirements.txt
+
+      - name: Run Script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+        run: python script.py
+
+      - name: Save Last Post Data
+        run: |
+          git config --global user.name "Auto Bot"
+          git config --global user.email "bot@github.com"
+          git add last_post.txt || echo "No changes"
+          git commit -m "Update last post" || echo "No changes"
+          git push
