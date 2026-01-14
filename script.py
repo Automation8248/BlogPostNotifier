@@ -2,11 +2,11 @@ import os
 import feedparser
 import requests
 
-# GitHub Secrets se data le rahe hain (Inko edit mat karna)
+# GitHub Secrets se data le rahe hain
 BOT_TOKEN = os.environ['TELEGRAM_TOKEN']
 CHAT_ID = os.environ['CHANNEL_ID']
 
-# AAPKA BLOG URL (Maine add kar diya hai)
+# AAPKA BLOG URL
 RSS_URL = "https://technovexa.blogspot.com/feeds/posts/default"
 DB_FILE = "last_post.txt"
 
@@ -15,7 +15,8 @@ def send_telegram(message):
     payload = {
         "chat_id": CHAT_ID, 
         "text": message, 
-        "disable_web_page_preview": False  # Link ka preview dikhega
+        # Yeh 'False' hai taaki Link ka photo/thumbnail dikhe
+        "disable_web_page_preview": False 
     }
     try:
         response = requests.post(url, json=payload)
@@ -34,7 +35,6 @@ def main():
             print("No posts found in RSS feed.")
             return
         
-        # Latest post nikalna
         latest_post = feed.entries[0]
         latest_link = latest_post.link
         
@@ -52,13 +52,13 @@ def main():
     if latest_link != last_link:
         print(f"New Post Found: {latest_link}")
         
-        # --- FINAL MESSAGE FORMAT ---
+        # --- YAHAN DEKHEIN: Link + Message Ek Saath ---
         final_message = f"{latest_link}\n\n✅ Successfully Posted via Automation!"
         
-        # Telegram par bhejna
+        # Ek hi message bhej rahe hain
         send_telegram(final_message)
         
-        # File update karna (Taaki dubara na bheje)
+        # File update karna
         with open(DB_FILE, "w") as f:
             f.write(latest_link)
     else:
