@@ -2,7 +2,7 @@ name: BlogPostNotifier
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # Har 15 Minute mein check karega
+    - cron: '0 */4 * * *' # Har 4 ghante mein check karega
   workflow_dispatch:      # Manual run button
 
 permissions:
