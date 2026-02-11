@@ -1,7 +1,6 @@
 import os
 import feedparser
 import requests
-import json
 import time
 
 # --- GitHub Secrets ---
@@ -21,8 +20,8 @@ RSS_URLS = [
     # "https://future-blog-link.com/feeds/posts/default"  <-- Future mein aise add karein
 ]
 
-# Data save karne ke liye file name
-DB_FILE = "rss_data.json"
+# Data save karne ke liye text file
+DB_FILE = "last_post.txt"
 
 def send_telegram(message):
     """Telegram par message bhejne ka function"""
@@ -42,19 +41,25 @@ def send_telegram(message):
         return False
 
 def load_data():
-    """Purana data load karega (kaunsa link last post hua tha)"""
+    """Text file se purana data load karega"""
+    data = {}
     if os.path.exists(DB_FILE):
         try:
             with open(DB_FILE, "r") as f:
-                return json.load(f)
+                for line in f:
+                    if "==" in line:
+                        parts = line.strip().split("==")
+                        if len(parts) == 2:
+                            data[parts[0]] = parts[1]
         except:
             return {}
-    return {}
+    return data
 
 def save_data(data):
-    """Naya data save karega"""
+    """Naya data text file mein save karega"""
     with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+        for url, link in data.items():
+            f.write(f"{url}=={link}\n")
 
 def main():
     print("Starting Sequence Check...")
@@ -77,8 +82,8 @@ def main():
             
             # Check karein ki iss wale Blog ka last saved link kya tha
             last_link = last_seen_data.get(rss_url, None)
-            
-            # --- NEW LOGIC: Multiple Posts & Duplicate Check ---
+
+            # --- MATCHING LOGIC ---
             new_posts_found = []
             
             # Feed mein check karte jao jab tak purana link na mil jaye
@@ -100,12 +105,13 @@ def main():
                     latest_link = post.link
                     title = post.title
                     
-                    # Message format
-                    final_message = f"**{title}**\n\n{latest_link}\n\n✅ Successfully Posted via Automation!"
+                    # Message format (No Stars **, No Hashtags #)
+                    final_message = f"{title}\n\n{latest_link}\n\n✅ Successfully Posted via Automation!"
                     
                     # Telegram par bhejo
                     if send_telegram(final_message):
                         # Agar message chala gaya, tabhi DB update ke liye ready karo
+                        # Lekin hum loop mein DB update nahi karenge, memory mein karenge
                         last_seen_data[rss_url] = latest_link
                         data_changed = True
                         time.sleep(2) # Thoda wait karein taaki Telegram spam na samjhe
