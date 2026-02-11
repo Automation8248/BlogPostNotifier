@@ -2,10 +2,15 @@ import os
 import feedparser
 import requests
 import json
+import time
 
 # --- GitHub Secrets ---
-BOT_TOKEN = os.environ['TELEGRAM_TOKEN']
-CHAT_ID = os.environ['CHANNEL_ID']
+try:
+    BOT_TOKEN = os.environ['TELEGRAM_TOKEN']
+    CHAT_ID = os.environ['CHANNEL_ID']
+except KeyError:
+    print("Error: Secrets set nahi hain. Kripya Github Secrets check karein.")
+    exit(1)
 
 # --- CONFIGURATION: BLOG LINKS ---
 # Yahan aap apne saare Blog Links add kar sakte hain.
@@ -31,8 +36,10 @@ def send_telegram(message):
         response = requests.post(url, json=payload)
         response.raise_for_status()
         print("Message sent to Telegram.")
+        return True
     except Exception as e:
         print(f"Error sending message: {e}")
+        return False
 
 def load_data():
     """Purana data load karega (kaunsa link last post hua tha)"""
@@ -68,25 +75,40 @@ def main():
                 print(f"No posts found or Error loading: {rss_url}")
                 continue 
             
-            latest_post = feed.entries[0]
-            latest_link = latest_post.link
-            
             # Check karein ki iss wale Blog ka last saved link kya tha
-            last_link = last_seen_data.get(rss_url, "")
+            last_link = last_seen_data.get(rss_url, None)
+            
+            # --- NEW LOGIC: Multiple Posts & Duplicate Check ---
+            new_posts_found = []
+            
+            # Feed mein check karte jao jab tak purana link na mil jaye
+            for entry in feed.entries:
+                if entry.link == last_link:
+                    break # Ruk jao, ye post hum pehle bhej chuke hain
+                new_posts_found.append(entry)
+            
+            # Agar last_link None hai (First time run), toh sirf latest 1 post bhejo
+            if last_link is None and new_posts_found:
+                new_posts_found = [new_posts_found[0]]
 
-            # --- MATCHING LOGIC ---
-            if latest_link != last_link:
-                print(f"New Post Found: {latest_link}")
+            # Agar naye posts mile hain
+            if new_posts_found:
+                print(f"New Posts Found: {len(new_posts_found)}")
                 
-                # Message format
-                final_message = f"{latest_link}\n\n✅ Successfully Posted via Automation!"
-                
-                # Telegram par bhejo
-                send_telegram(final_message)
-                
-                # Database dictionary update karein
-                last_seen_data[rss_url] = latest_link
-                data_changed = True
+                # List ko reverse karein (Oldest to Newest) taaki line se jaye
+                for post in reversed(new_posts_found):
+                    latest_link = post.link
+                    title = post.title
+                    
+                    # Message format
+                    final_message = f"**{title}**\n\n{latest_link}\n\n✅ Successfully Posted via Automation!"
+                    
+                    # Telegram par bhejo
+                    if send_telegram(final_message):
+                        # Agar message chala gaya, tabhi DB update ke liye ready karo
+                        last_seen_data[rss_url] = latest_link
+                        data_changed = True
+                        time.sleep(2) # Thoda wait karein taaki Telegram spam na samjhe
             else:
                 print(f"No new posts for this URL.")
                 
